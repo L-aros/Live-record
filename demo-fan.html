@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>主播聚合大屏 · 粉丝向 Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #080C12;
+  --bg-card: #0D1320;
+  --bg-card2: #111826;
+  --border: rgba(255,255,255,0.07);
+  --border-hover: rgba(255,255,255,0.16);
+  --text-1: #DDE3EE;
+  --text-2: #7A8899;
+  --text-3: #4A5568;
+  --green: #00C97C;
+  --green-dim: rgba(0,201,124,0.12);
+  --red: #FF4757;
+  --red-dim: rgba(255,71,87,0.12);
+  --amber: #FFB020;
+  --amber-dim: rgba(255,176,32,0.12);
+  --blue: #3D8EFF;
+  --blue-dim: rgba(61,142,255,0.12);
+  --purple: #9B7FFF;
+  --gold: #FFD15C;
+  --bili: #4A90E2;
+  --douyu: #FF6B35;
+  --huya: #FFB020;
+  --douyin: #9B7FFF;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text-1);
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  min-height: 100vh;
+  padding: 20px;
+}
+.mono { font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+a { color: inherit; text-decoration: none; }
+
+/* ───────── Top bar ───────── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px;
+  border-bottom: 0.5px solid var(--border);
+  padding-bottom: 14px;
+}
+.topbar-title {
+  font-size: 17px; font-weight: 500; letter-spacing: 0.06em;
+  display: flex; align-items: center; gap: 10px;
+}
+.logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--red); animation: blink 1.6s infinite; }
+@keyframes blink { 0%,100%{opacity:1;box-shadow:0 0 8px var(--red)} 50%{opacity:0.3;box-shadow:none} }
+.topbar-right { display: flex; align-items: center; gap: 14px; font-size: 12px; color: var(--text-2); }
+.topbar-right .pill { padding: 4px 12px; border-radius: 20px; border: 0.5px solid var(--border); }
+.topbar-right .pill.live { background: var(--red-dim); border-color: var(--red); color: var(--red); }
+.clock { font-size: 14px; color: var(--text-1); letter-spacing: 0.04em; }
+
+/* ───────── Hero (currently live, big card) ───────── */
+.hero {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 18px;
+  height: 280px;
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.hero:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+.hero-cover {
+  position: absolute; inset: 0;
+  background-size: cover; background-position: center;
+  filter: blur(2px) brightness(0.45);
+  transform: scale(1.05);
+}
+.hero-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(8,12,18,0.4) 0%, rgba(8,12,18,0.95) 100%);
+}
+.hero-content {
+  position: relative; z-index: 2;
+  padding: 28px 32px;
+  height: 100%;
+  display: flex; align-items: flex-end; gap: 24px;
+}
+.hero-avatar {
+  width: 96px; height: 96px; border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.12);
+  flex-shrink: 0;
+  background-size: cover; background-position: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.hero-info { flex: 1; min-width: 0; }
+.hero-tagline {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; padding: 4px 10px; border-radius: 20px;
+  background: var(--red-dim); color: var(--red);
+  margin-bottom: 10px; font-weight: 500;
+}
+.hero-tagline .live-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--red); animation: blink 1.4s infinite;
+}
+.hero-name { font-size: 32px; font-weight: 700; margin-bottom: 6px; line-height: 1.1; }
+.hero-title {
+  font-size: 16px; color: var(--text-1); opacity: 0.92;
+  margin-bottom: 14px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hero-meta {
+  display: flex; gap: 18px; flex-wrap: wrap;
+  font-size: 13px; color: var(--text-2);
+}
+.hero-meta .item { display: flex; align-items: center; gap: 6px; }
+.hero-meta .icon { font-size: 14px; opacity: 0.85; }
+.hero-meta .val { color: var(--text-1); font-weight: 500; }
+.hero-meta .heat { color: var(--amber); }
+.hero-meta .heat-hot { color: var(--red); }
+
+.hero-platform-pill {
+  position: absolute; top: 20px; right: 24px;
+  z-index: 3;
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; padding: 4px 10px; border-radius: 20px;
+  font-weight: 500; backdrop-filter: blur(8px);
+}
+
+/* ───────── Layout ───────── */
+.main { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
+
+/* ───────── Section header ───────── */
+.section-hd {
+  display: flex; align-items: center; gap: 10px;
+  margin: 22px 0 12px;
+}
+.section-hd .label {
+  font-size: 12px; color: var(--text-3); letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.section-hd .line { flex: 1; height: 0.5px; background: var(--border); }
+.section-hd .count { font-size: 12px; color: var(--text-2); }
+
+/* ───────── Room grid ───────── */
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(max(240px, calc((100% - 30px) / 4)), 1fr));
+  gap: 12px;
+}
+.room-card {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.15s;
+  display: block;
+  position: relative;
+}
+.room-card:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+
+.room-cover {
+  width: 100%; aspect-ratio: 16/9;
+  background-size: cover; background-position: center;
+  background-color: #1a2030;
+  position: relative;
+}
+.room-cover-empty {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px; color: rgba(255,255,255,0.2);
+}
+.room-status-tag {
+  position: absolute; top: 10px; left: 10px;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; padding: 3px 8px; border-radius: 4px;
+  font-weight: 500; backdrop-filter: blur(6px);
+}
+.room-status-tag.live { background: rgba(255,71,87,0.85); color: #fff; }
+.room-status-tag.idle { background: rgba(0,0,0,0.6); color: var(--text-2); }
+.room-status-tag .dot {
+  width: 5px; height: 5px; border-radius: 50%; background: #fff;
+  animation: blink 1.4s infinite;
+}
+.room-platform-tag {
+  position: absolute; top: 10px; right: 10px;
+  font-size: 10px; padding: 3px 7px; border-radius: 4px;
+  font-weight: 500;
+}
+.plat-bili    { background: rgba(74,144,226,0.85); color: #fff; }
+.plat-douyu   { background: rgba(255,107,53,0.85); color: #fff; }
+.plat-huya    { background: rgba(255,176,32,0.85); color: #1a1a1a; }
+.plat-douyin  { background: rgba(155,127,255,0.85); color: #fff; }
+
+.room-cover-bottom {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 28px 12px 10px;
+  background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+  font-size: 12px; color: rgba(255,255,255,0.95);
+  display: flex; gap: 12px; justify-content: space-between;
+}
+.room-cover-bottom .item { display: flex; align-items: center; gap: 4px; }
+
+.room-body { padding: 12px 14px 14px; display: flex; gap: 10px; align-items: flex-start; }
+.room-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  flex-shrink: 0; background-size: cover; background-position: center;
+  background-color: #2a3550;
+}
+.room-info { flex: 1; min-width: 0; }
+.room-name {
+  font-size: 14px; font-weight: 500; margin-bottom: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.room-title {
+  font-size: 12px; color: var(--text-2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.room-idle-meta {
+  font-size: 11px; color: var(--text-3); margin-top: 3px;
+}
+
+/* ───────── Right column ───────── */
+.right-col { display: flex; flex-direction: column; gap: 14px; }
+.panel {
+  background: var(--bg-card);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.panel-title {
+  font-size: 12px; color: var(--text-2); letter-spacing: 0.06em;
+  margin-bottom: 14px; display: flex; align-items: center; gap: 6px;
+  text-transform: uppercase;
+}
+.panel-title .emoji { font-size: 14px; }
+
+/* Leaderboard */
+.lb-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 0;
+  border-bottom: 0.5px solid var(--border);
+}
+.lb-row:last-child { border-bottom: none; }
+.lb-medal {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  flex-shrink: 0;
+}
+.lb-medal.gold { background: rgba(255,209,92,0.18); color: var(--gold); }
+.lb-cat {
+  font-size: 10px; color: var(--text-3); letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+.lb-info { flex: 1; min-width: 0; }
+.lb-name { font-size: 13px; color: var(--text-1); font-weight: 500; }
+.lb-val { font-size: 11px; color: var(--text-2); margin-top: 1px; }
+
+/* Streamer profile (7-day) */
+.profile-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 0; border-bottom: 0.5px solid var(--border);
+}
+.profile-row:last-child { border-bottom: none; padding-bottom: 0; }
+.profile-row:first-child { padding-top: 0; }
+.profile-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background-size: cover; background-position: center;
+  background-color: #2a3550; flex-shrink: 0;
+}
+.profile-info { flex: 1; min-width: 0; }
+.profile-name {
+  font-size: 13px; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+.profile-stats {
+  font-size: 11px; color: var(--text-3);
+  display: flex; gap: 8px;
+}
+.profile-stats .stat { color: var(--text-2); }
+.profile-status {
+  font-size: 10px; padding: 2px 7px; border-radius: 3px;
+  flex-shrink: 0;
+}
+.profile-status.live { background: var(--red-dim); color: var(--red); }
+.profile-status.idle { background: rgba(255,255,255,0.04); color: var(--text-3); }
+
+/* Spark line */
+.sparkline {
+  display: flex; align-items: flex-end;
+  gap: 2px; height: 18px; width: 60px; margin-left: 8px;
+  flex-shrink: 0;
+}
+.spark-bar {
+  flex: 1; min-height: 2px;
+  background: rgba(0,201,124,0.5); border-radius: 1px;
+}
+.spark-bar.today { background: var(--green); }
+
+/* Activity feed (compact) */
+.activity-list { display: flex; flex-direction: column; }
+.activity-item {
+  display: flex; gap: 10px; padding: 9px 0;
+  border-bottom: 0.5px solid var(--border);
+}
+.activity-item:last-child { border-bottom: none; padding-bottom: 0; }
+.activity-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  background-size: cover; background-position: center;
+  background-color: #2a3550; flex-shrink: 0;
+}
+.activity-body { flex: 1; min-width: 0; font-size: 12px; line-height: 1.45; }
+.activity-name { font-weight: 500; color: var(--text-1); }
+.activity-action { color: var(--text-2); }
+.activity-time { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+
+/* Footer */
+.footer { text-align: center; padding: 24px 0 8px; color: var(--text-3); font-size: 11px; }
+.footer a { color: var(--text-2); }
+
+@media (max-width: 1100px) {
+  .main { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  body { padding: 12px; }
+  .hero { height: 240px; }
+  .hero-content { padding: 20px; gap: 16px; }
+  .hero-avatar { width: 72px; height: 72px; }
+  .hero-name { font-size: 24px; }
+  .hero-title { font-size: 14px; }
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-title">
+    <span class="logo-dot"></span>
+    主播聚合大屏
+  </div>
+  <div class="topbar-right">
+    <span class="pill live mono" id="t-live-count">2 主播在播</span>
+    <span class="clock mono" id="clock">--:--:--</span>
+  </div>
+</div>
+
+<!-- Hero: top live streamer -->
+<div id="hero-slot"></div>
+
+<div class="main">
+  <div>
+    <!-- Other live -->
+    <div class="section-hd" id="hd-live" style="display:none">
+      <span class="label">同时在播</span>
+      <span class="line"></span>
+      <span class="count mono" id="cnt-live"></span>
+    </div>
+    <div class="rooms-grid" id="grid-live"></div>
+
+    <!-- Idle -->
+    <div class="section-hd">
+      <span class="label">未开播</span>
+      <span class="line"></span>
+      <span class="count mono" id="cnt-idle"></span>
+    </div>
+    <div class="rooms-grid" id="grid-idle"></div>
+  </div>
+
+  <div class="right-col">
+    <!-- Leaderboard -->
+    <div class="panel">
+      <div class="panel-title"><span class="emoji">🏆</span>本周之最</div>
+      <div id="leaderboard"></div>
+    </div>
+
+    <!-- 7-day profile -->
+    <div class="panel">
+      <div class="panel-title"><span class="emoji">📊</span>主播档案 · 近 7 日</div>
+      <div id="profile-list"></div>
+    </div>
+
+    <!-- Recent activity -->
+    <div class="panel">
+      <div class="panel-title"><span class="emoji">🕐</span>最近动态</div>
+      <div class="activity-list" id="activity-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Powered by biliLive-tools · <a href="https://space.bilibili.com/384518666" target="_blank" rel="noopener">L-aros</a>
+</div>
+
+<script>
+// ───── Live data: read from deployed Worker (CORS allowed) ─────
+// Worker also serves as image proxy for douyin avatar/cover (referer protected).
+const API_BASE = 'https://live-record.neoclaw.asia';
+
+let STREAMERS = [];
+let ACTIVITY = [];
+let LAST_FETCH = 0;
+
+// Pin the earliest liveStartTime seen per (roomId, liveId) within this session.
+// Prevents duration display from jumping/resetting when Worker values change between polls.
+const liveStartPins = {};
+function stableLiveStart(id, liveId, raw) {
+  if (!liveId) return raw || 0;
+  const key = id + '/' + liveId;
+  const existing = liveStartPins[key];
+  if (!existing || existing === 0 || (raw > 0 && raw < existing)) {
+    liveStartPins[key] = Math.min(raw || Date.now(), Date.now());
+  }
+  return liveStartPins[key];
+}
+function stableDuration(startTime) {
+  if (!startTime) return 0;
+  return Math.max(0, (Date.now() - startTime) / 1000);
+}
+
+function proxyImg(url) {
+  if (!url) return '';
+  return API_BASE + '/api/avatar?url=' + encodeURIComponent(url);
+}
+
+async function fetchData() {
+  try {
+    const r = await fetch(API_BASE + '/api/status', { cache: 'no-store' });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'API error');
+
+    STREAMERS = (j.rooms || []).map((room) => {
+      const raw = room.liveStartTimestamp || room.recordStartTimestamp || 0;
+      const liveId = room.liveId || '';
+      return {
+        id: room.id,
+        name: room.name,
+        platform: room.platformClass,
+        platformLabel: room.platformLabel,
+        roomId: room.roomId,
+        url: room.url,
+        avatar: proxyImg(room.avatar),
+        cover: proxyImg(room.cover),
+        status: room.liveStatus,
+        recording: room.recording || false,
+        autoCheck: room.autoCheck !== false,
+        title: room.title,
+        area: room.area,
+        liveId,
+        liveStartTime: stableLiveStart(room.id, liveId, raw),
+        currentDanmu: room.currentDanmu || 0,
+        danmaDensity: room.currentDanmaDensity || 0,
+        interactNum: room.currentInteract || 0,
+        lastLive: room.lastLiveTimestamp,
+        weekStats: room.weekStats ? {
+          sessions: room.weekStats.sessions || 0,
+          totalSeconds: room.weekStats.totalSeconds || 0,
+          totalDanmu: room.weekStats.totalDanmu || 0,
+          avgDensity: room.weekStats.avgDensity || 0,
+        } : { sessions: 0, totalSeconds: 0, totalDanmu: 0, avgDensity: 0 },
+        weekDaily: room.weekDaily || new Array(7).fill(0),
+      };
+    });
+
+    ACTIVITY = (j.recentEvents || [])
+      .filter((e) => e.type !== 'live_no_rec')          // hide ops-only event
+      .map((e) => {
+        const room = STREAMERS.find((s) => s.name === e.roomName);
+        const action = e.type === 'rec_start'
+          ? '开始直播'
+          : e.type === 'rec_end'
+            ? '结束直播' + (e.text.match(/· (\d+)m/) ? ' · 本场 ' + e.text.match(/· (\d+)m/)[1] + ' 分钟' : '')
+            : e.text;
+        return {
+          id: room ? room.id : null,
+          name: e.roomName,
+          action,
+          time: e.timestamp,
+          avatar: room ? room.avatar : '',
+        };
+      })
+      .filter((a) => a.id);
+
+    LAST_FETCH = Date.now();
+    renderAll();
+  } catch (err) {
+    console.error('fetch failed', err);
+    setHtmlIfChanged(document.getElementById('hero-slot'),
+      '<div style="background:var(--red-dim);border:0.5px solid var(--red);color:var(--red);padding:14px 18px;border-radius:10px;font-size:13px">⚠ 数据获取失败: ' +
+      String(err.message || err) + '</div>');
+  }
+}
+
+function renderAll() {
+  renderHero();
+  renderRooms();
+  renderLeaderboard();
+  renderProfiles();
+  renderActivity();
+}
+
+// ───── Helpers ─────
+function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+function fmtNum(n) {
+  if (n == null) return '0';
+  if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
+  return n.toLocaleString('en-US');
+}
+function fmtDuration(s) {
+  s = Math.max(0, Math.floor(s));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return h + 'h ' + pad2(m) + 'm';
+  return m + 'm ' + pad2(sec) + 's';
+}
+function fmtHours(s) {
+  const h = s / 3600;
+  if (h >= 10) return h.toFixed(1) + 'h';
+  return h.toFixed(1) + 'h';
+}
+function fmtRel(ts) {
+  if (!ts) return '未知';
+  const diff = (Date.now() - ts) / 1000;
+  if (diff < 60) return '刚刚';
+  if (diff < 3600) return Math.floor(diff / 60) + ' 分钟前';
+  if (diff < 86400) return Math.floor(diff / 3600) + ' 小时前';
+  const d = Math.floor(diff / 86400);
+  return d + ' 天前';
+}
+function fmtTimeShort(ts) {
+  const d = new Date(ts);
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  if (ts >= today.getTime()) return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  if (ts >= today.getTime() - 86400000) return '昨天 ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  return (d.getMonth()+1) + '/' + d.getDate();
+}
+function heatLabel(density) {
+  if (density >= 1.0) return { text: '🔥 ' + density.toFixed(2) + '/s', cls: 'heat-hot', label: '爆热' };
+  if (density >= 0.5) return { text: '🔥 ' + density.toFixed(2) + '/s', cls: 'heat', label: '不错' };
+  return { text: density.toFixed(2) + '/s', cls: '', label: '一般' };
+}
+function platCls(p) { return 'plat-' + p; }
+function escape(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+// Skip innerHTML assignment when content hasn't changed — preserves <img> loading state
+const _htmlCache = {};
+function setHtmlIfChanged(el, html) {
+  if (!el) return;
+  const key = el.id || ('__el_' + (el._slot || (el._slot = Math.random())));
+  if (_htmlCache[key] === html) return;
+  _htmlCache[key] = html;
+  el.innerHTML = html;
+}
+
+// ───── Renderers ─────
+function renderClock() {
+  const d = new Date();
+  document.getElementById('clock').textContent =
+    pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds());
+}
+
+function renderHero() {
+  // Pick the hottest live streamer (max danmaDensity * sqrt(currentDanmu))
+  const live = STREAMERS.filter(s => s.status === 'live');
+  if (live.length === 0) { setHtmlIfChanged(document.getElementById('hero-slot'), ''); return; }
+  const hero = live.reduce((a, b) => {
+    const sa = (a.danmaDensity||0) * Math.sqrt(a.currentDanmu||0);
+    const sb = (b.danmaDensity||0) * Math.sqrt(b.currentDanmu||0);
+    return sb > sa ? b : a;
+  });
+
+  const dur = stableDuration(hero.liveStartTime);
+  const heat = heatLabel(hero.danmaDensity);
+
+  setHtmlIfChanged(document.getElementById('hero-slot'), `
+    <a class="hero" href="${escape(hero.url)}" target="_blank" rel="noopener" data-hero-id="${hero.id}">
+      <div class="hero-cover" style="background-image:url('${escape(hero.cover)}')"></div>
+      <div class="hero-overlay"></div>
+      <span class="hero-platform-pill ${platCls(hero.platform)}">${escape(hero.platformLabel)} · ${escape(hero.roomId)}</span>
+      <div class="hero-content">
+        <div class="hero-avatar" style="background-image:url('${escape(hero.avatar)}')"></div>
+        <div class="hero-info">
+          <span class="hero-tagline"><span class="live-dot"></span>正在直播 · 本场最热</span>
+          <div class="hero-name">${escape(hero.name)}</div>
+          <div class="hero-title">${escape(hero.title)}</div>
+          <div class="hero-meta">
+            <span class="item"><span class="icon">⏱</span><span class="val mono" data-hero-dur>${fmtDuration(dur)}</span></span>
+            <span class="item"><span class="icon">💬</span><span class="val mono">${fmtNum(hero.currentDanmu)}</span> 弹幕</span>
+            <span class="item"><span class="icon">⚡</span><span class="val mono ${heat.cls}">${heat.text}</span> <span style="opacity:0.7">${heat.label}</span></span>
+            <span class="item"><span class="icon">❤</span><span class="val mono">${fmtNum(hero.interactNum)}</span> 互动</span>
+          </div>
+        </div>
+      </div>
+    </a>`);
+}
+
+function renderRoomCard(s) {
+  if (s.status === 'live') {
+    const dur = stableDuration(s.liveStartTime);
+    const heat = heatLabel(s.danmaDensity);
+    const coverBg = s.cover
+      ? `<div class="room-cover" style="background-image:url('${escape(s.cover)}')">`
+      : `<div class="room-cover room-cover-empty">📺`;
+    return `
+      <a class="room-card" href="${escape(s.url)}" target="_blank" rel="noopener">
+        ${coverBg}
+          <span class="room-status-tag live"><span class="dot"></span>LIVE</span>
+          ${s.recording ? '<span class="room-rec-tag" style="background:rgba(0,201,124,0.85);color:#fff;display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 8px;border-radius:4px;font-weight:500;backdrop-filter:blur(6px)"><span style="width:6px;height:6px;display:inline-block;background:#fff;border-radius:50%"></span>录制中</span>' : ''}
+          <span class="room-platform-tag ${platCls(s.platform)}">${escape(s.platformLabel)}</span>
+          <div class="room-cover-bottom">
+            <span class="item mono" data-room-dur="${s.liveStartTime}">⏱ ${fmtDuration(dur)}</span>
+            <span class="item mono">💬 ${fmtNum(s.currentDanmu)}</span>
+          </div>
+        </div>
+        <div class="room-body">
+          <div class="room-avatar" style="background-image:url('${escape(s.avatar)}')"></div>
+          <div class="room-info">
+            <div class="room-name">${escape(s.name)}</div>
+            <div class="room-title">${escape(s.title || '直播中')}</div>
+          </div>
+        </div>
+      </a>`;
+  }
+  // idle
+  return `
+    <a class="room-card" href="${escape(s.url)}" target="_blank" rel="noopener">
+      <div class="room-cover room-cover-empty">
+        <span class="room-status-tag idle">离线</span>
+        ${!s.autoCheck ? '<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 8px;border-radius:4px;font-weight:500;background:rgba(255,71,87,0.85);color:#fff;backdrop-filter:blur(6px)">录制关闭</span>' : ''}
+        <span class="room-platform-tag ${platCls(s.platform)}">${escape(s.platformLabel)}</span>
+        💤
+      </div>
+      <div class="room-body">
+        <div class="room-avatar" style="background-image:url('${escape(s.avatar)}')"></div>
+        <div class="room-info">
+          <div class="room-name">${escape(s.name)}</div>
+          <div class="room-idle-meta">${s.lastLive ? '上次直播 · ' + escape(fmtRel(s.lastLive)) : '暂无直播记录'}</div>
+        </div>
+      </div>
+    </a>`;
+}
+
+function renderRooms() {
+  const live = STREAMERS.filter(s => s.status === 'live');
+  const idle = STREAMERS.filter(s => s.status === 'idle');
+
+  // Hero already takes the hottest live streamer; show others in "同时在播"
+  const heroId = live.length ? live.reduce((a,b) => {
+    const sa = (a.danmaDensity||0) * Math.sqrt(a.currentDanmu||0);
+    const sb = (b.danmaDensity||0) * Math.sqrt(b.currentDanmu||0);
+    return sb > sa ? b : a;
+  }).id : null;
+  const otherLive = live.filter(s => s.id !== heroId);
+
+  const liveHd = document.getElementById('hd-live');
+  const liveGrid = document.getElementById('grid-live');
+  if (otherLive.length > 0) {
+    liveHd.style.display = 'flex';
+    document.getElementById('cnt-live').textContent = otherLive.length;
+    setHtmlIfChanged(liveGrid, otherLive.map(renderRoomCard).join(''));
+  } else {
+    liveHd.style.display = 'none';
+    setHtmlIfChanged(liveGrid, '');
+  }
+
+  document.getElementById('cnt-idle').textContent = idle.length;
+  setHtmlIfChanged(
+    document.getElementById('grid-idle'),
+    idle.length > 0
+      ? idle.map(renderRoomCard).join('')
+      : '<div style="color:var(--text-3);padding:8px 0;font-size:12px;text-align:center;grid-column:1/-1">暂无未开播主播</div>'
+  );
+
+  document.getElementById('t-live-count').textContent = live.length + ' 主播在播';
+}
+
+function renderLeaderboard() {
+  // Compute champions
+  const byDanmu = [...STREAMERS].sort((a,b) => b.weekStats.totalDanmu - a.weekStats.totalDanmu)[0];
+  const byHours = [...STREAMERS].sort((a,b) => b.weekStats.totalSeconds - a.weekStats.totalSeconds)[0];
+  const byDensity = [...STREAMERS].sort((a,b) => b.weekStats.avgDensity - a.weekStats.avgDensity)[0];
+  const bySessions = [...STREAMERS].sort((a,b) => b.weekStats.sessions - a.weekStats.sessions)[0];
+
+  const items = [
+    { cat: '弹幕王', s: byDanmu, val: fmtNum(byDanmu.weekStats.totalDanmu) + ' 条' },
+    { cat: '续航之王', s: byHours, val: fmtHours(byHours.weekStats.totalSeconds) + ' 直播' },
+    { cat: '气氛之最', s: byDensity, val: byDensity.weekStats.avgDensity.toFixed(2) + '/s 弹幕密度' },
+    { cat: '勤奋开播', s: bySessions, val: bySessions.weekStats.sessions + ' 场直播' },
+  ];
+
+  setHtmlIfChanged(document.getElementById('leaderboard'), items.map(it => `
+    <div class="lb-row">
+      <div class="lb-medal gold">🏆</div>
+      <div class="lb-info">
+        <div class="lb-cat">${escape(it.cat)}</div>
+        <div class="lb-name">${escape(it.s.name)}</div>
+        <div class="lb-val mono">${escape(it.val)}</div>
+      </div>
+    </div>
+  `).join(''));
+}
+
+function renderSparkline(daily) {
+  const max = Math.max.apply(null, daily.concat([1]));
+  return `<div class="sparkline">${daily.map((v, i) => {
+    const h = Math.max(2, Math.round((v / max) * 100));
+    const isToday = i === daily.length - 1;
+    return `<div class="spark-bar${isToday ? ' today' : ''}" style="height:${h}%"></div>`;
+  }).join('')}</div>`;
+}
+
+function renderProfiles() {
+  // Sort: live first, then by total danmu desc
+  const sorted = [...STREAMERS].sort((a, b) => {
+    if (a.status !== b.status) return a.status === 'live' ? -1 : 1;
+    return b.weekStats.totalDanmu - a.weekStats.totalDanmu;
+  });
+
+  setHtmlIfChanged(document.getElementById('profile-list'), sorted.map(s => `
+    <div class="profile-row">
+      <div class="profile-avatar" style="background-image:url('${escape(s.avatar)}')"></div>
+      <div class="profile-info">
+        <div class="profile-name">${escape(s.name)}</div>
+        <div class="profile-stats">
+          <span class="stat mono">${s.weekStats.sessions} 场</span>
+          <span class="stat mono">${fmtHours(s.weekStats.totalSeconds)}</span>
+          <span class="stat mono">💬${fmtNum(s.weekStats.totalDanmu)}</span>
+        </div>
+      </div>
+      ${renderSparkline(s.weekDaily)}
+      <span class="profile-status ${s.status === 'live' ? 'live' : 'idle'}">${s.status === 'live' ? '直播中' : '离线'}</span>
+    </div>
+  `).join(''));
+}
+
+function renderActivity() {
+  if (ACTIVITY.length === 0) {
+    setHtmlIfChanged(document.getElementById('activity-list'),
+      '<div style="color:var(--text-3);padding:8px 0;font-size:12px;text-align:center">暂无动态</div>');
+    return;
+  }
+  const sorted = [...ACTIVITY].sort((a,b) => b.time - a.time).slice(0, 10);
+  setHtmlIfChanged(document.getElementById('activity-list'), sorted.map(a => `
+    <div class="activity-item">
+      <div class="activity-avatar" style="background-image:url('${escape(a.avatar)}')"></div>
+      <div class="activity-body">
+        <div><span class="activity-name">${escape(a.name)}</span> <span class="activity-action">${escape(a.action)}</span></div>
+        <div class="activity-time mono">${fmtTimeShort(a.time)} · ${fmtRel(a.time)}</div>
+      </div>
+    </div>`).join(''));
+}
+
+function tick() {
+  // Update hero duration
+  const heroDur = document.querySelector('[data-hero-dur]');
+  if (heroDur) {
+    const heroEl = document.querySelector('[data-hero-id]');
+    if (heroEl) {
+      const hero = STREAMERS.find(s => s.id === heroEl.getAttribute('data-hero-id'));
+      if (hero) heroDur.textContent = fmtDuration((Date.now() - hero.liveStartTime) / 1000);
+    }
+  }
+  // Update room durations
+  document.querySelectorAll('[data-room-dur]').forEach(el => {
+    const start = +el.getAttribute('data-room-dur');
+    const s = (Date.now() - start) / 1000;
+    el.textContent = '⏱ ' + fmtDuration(s);
+  });
+}
+
+// ───── Init ─────
+renderClock();
+fetchData();
+
+setInterval(renderClock, 1000);
+setInterval(tick, 1000);
+setInterval(fetchData, 10000);
+</script>
+</body>
+</html>

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>直播录制状态大屏</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #0a0e1a;
+  color: #e0e6f0;
+  min-height: 100vh;
+  padding: 20px;
+}
+.header {
+  text-align: center;
+  padding: 20px 0 30px;
+}
+.header h1 {
+  font-size: 28px;
+  background: linear-gradient(135deg, #00d4ff, #7b68ee);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+.header .subtitle {
+  color: #6b7a99;
+  font-size: 14px;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto 30px;
+}
+.stat-card {
+  background: linear-gradient(135deg, #141b2d, #1a2340);
+  border: 1px solid #1e2a45;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  transition: transform 0.2s;
+}
+.stat-card:hover { transform: translateY(-2px); }
+.stat-card .value {
+  font-size: 36px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.stat-card .label {
+  font-size: 13px;
+  color: #6b7a99;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.stat-card.recording .value { color: #ff4757; }
+.stat-card.living .value { color: #2ed573; }
+.stat-card.total .value { color: #00d4ff; }
+
+.section-header {
+  max-width: 1200px;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.section-title {
+  font-size: 18px;
+  color: #8892b0;
+  border-left: 3px solid #7b68ee;
+  padding-left: 12px;
+}
+
+/* Card view - 2 per row */
+.rooms-container {
+  max-width: 1200px;
+  margin: 0 auto 30px;
+}
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+.room-card {
+  background: #141b2d;
+  border: 1px solid #1e2a45;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: border-color 0.2s;
+}
+a.room-card {
+  text-decoration: none;
+  color: inherit;
+}
+.room-card:hover { border-color: #3a4a6b; }
+.room-card.is-recording { border-left: 3px solid #ff4757; }
+.room-card.is-living { border-left: 3px solid #2ed573; }
+
+
+.room-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.room-avatar.bilibili { background: #fb7299; color: #fff; }
+.room-avatar.douyu { background: #ff7d00; color: #fff; }
+.room-avatar.huya { background: #f5a623; color: #fff; }
+.room-avatar.douyin { background: #1a1a1a; color: #fff; }
+.room-avatar.default { background: #3a4a6b; color: #fff; }
+
+.room-avatar-img {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.room-info { flex: 1; min-width: 0; }
+.room-name {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.room-meta {
+  font-size: 12px;
+  color: #6b7a99;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.room-title {
+  font-size: 12px;
+  color: #8892b0;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge.rec { background: rgba(255,71,87,0.15); color: #ff4757; }
+.badge.live { background: rgba(46,213,115,0.15); color: #2ed573; }
+.badge.offline { background: rgba(107,122,153,0.15); color: #6b7a99; }
+.badge.auto { background: rgba(0,212,255,0.15); color: #00d4ff; }
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.dot.rec { background: #ff4757; animation: pulse 1.5s infinite; }
+.dot.live { background: #2ed573; animation: pulse 2s infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.footer {
+  text-align: center;
+  padding: 20px;
+  color: #4a5568;
+  font-size: 12px;
+}
+.update-time { color: #6b7a99; }
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #4a5568;
+  grid-column: 1 / -1;
+}
+.empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+
+@media (max-width: 768px) {
+  body { padding: 12px; }
+  .header h1 { font-size: 22px; }
+  .stats-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .stat-card .value { font-size: 28px; }
+  .rooms-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>直播录制状态大屏</h1>
+  <div class="subtitle">实时监控 · 自动刷新 · <span class="update-time" id="updateTime">加载中...</span></div>
+</div>
+
+<div class="stats-grid" id="statsGrid">
+  <div class="stat-card total"><div class="value" id="totalCount">-</div><div class="label">监控房间</div></div>
+  <div class="stat-card living"><div class="value" id="livingCount">-</div><div class="label">正在直播</div></div>
+  <div class="stat-card recording"><div class="value" id="recordingCount">-</div><div class="label">正在录制</div></div>
+</div>
+
+<div class="section-header">
+  <div class="section-title">房间列表</div>
+</div>
+<div class="rooms-container">
+  <div class="rooms-grid" id="roomsGrid">
+    <div class="empty-state"><div class="icon">📡</div><div>正在获取数据...</div></div>
+  </div>
+</div>
+
+<div class="footer">
+  Powered by <a href="https://space.bilibili.com/384518666" target="_blank" rel="noopener" style="color:#6b7a99;text-decoration:none;">L-aros</a> · 每 10 秒自动刷新
+</div>
+
+<script>
+const platformNames = { Bilibili: 'B站', DouYu: '斗鱼', HuYa: '虎牙', DouYin: '抖音' };
+const platformClass = { Bilibili: 'bilibili', DouYu: 'douyu', HuYa: 'huya', DouYin: 'douyin' };
+const platformLiveUrl = {
+  Bilibili: 'https://live.bilibili.com/',
+  DouYu: 'https://www.douyu.com/',
+  HuYa: 'https://www.huya.com/',
+  DouYin: 'https://live.douyin.com/',
+};
+
+let cachedRooms = [];
+
+function getInitial(name) {
+  return name ? name.charAt(0).toUpperCase() : '?';
+}
+
+function renderRooms(rooms) {
+  if (!rooms || rooms.length === 0) {
+    return '<div class="empty-state"><div class="icon">📭</div><div>暂无监控房间</div></div>';
+  }
+  return rooms.map(r => {
+    const cls = r.recording ? 'is-recording' : (r.living ? 'is-living' : '');
+    const avatarCls = platformClass[r.platform] || 'default';
+    const badges = [];
+    if (r.recording) badges.push('<span class="badge rec"><span class="dot rec"></span>录制中</span>');
+    else if (r.living) badges.push('<span class="badge live"><span class="dot live"></span>直播中</span>');
+    else badges.push('<span class="badge offline">离线</span>');
+    if (r.autoCheck) badges.push('<span class="badge auto">自动</span>');
+
+    const avatarUrl = r.avatar ? '/api/avatar?url=' + encodeURIComponent(r.avatar) : '';
+    const avatarHtml = avatarUrl
+      ? '<img class="room-avatar-img" src="' + avatarUrl + '" alt="">'
+      : '<div class="room-avatar ' + avatarCls + '">' + getInitial(r.name) + '</div>';
+
+    const progressHtml = '';
+
+    const liveUrl = (platformLiveUrl[r.platform] || '') + (r.roomId || '');
+
+    return '<a class="room-card ' + cls + '" href="' + liveUrl + '" target="_blank" rel="noopener">' +
+      avatarHtml +
+      '<div class="room-info">' +
+        '<div class="room-name">' + (r.name || '未知') + '</div>' +
+        '<div class="room-meta">' +
+          '<span>' + (platformNames[r.platform] || r.platform || '未知') + '</span>' +
+          '<span>房间 ' + (r.roomId || '-') + '</span>' +
+          badges.join('') +
+          progressHtml +
+        '</div>' +
+        (r.title ? '<div class="room-title">' + r.title + '</div>' : '') +
+      '</div>' +
+    '</a>';
+  }).join('');
+}
+
+async function fetchData() {
+  try {
+    const statusRes = await fetch('/api/status');
+    const status = await statusRes.json();
+
+    if (status.ok) {
+      document.getElementById('totalCount').textContent = status.total;
+      document.getElementById('livingCount').textContent = status.living;
+      document.getElementById('recordingCount').textContent = status.recording;
+
+      cachedRooms = status.rooms.sort((a, b) => {
+        if (a.recording !== b.recording) return b.recording - a.recording;
+        if (a.living !== b.living) return b.living - a.living;
+        return 0;
+      });
+      document.getElementById('roomsGrid').innerHTML = renderRooms(cachedRooms);
+    }
+
+    const now = new Date();
+    document.getElementById('updateTime').textContent =
+      '更新于 ' + now.toLocaleTimeString('zh-CN', { hour12: false });
+  } catch (err) {
+    console.error('Fetch error:', err);
+  }
+}
+
+fetchData();
+setInterval(fetchData, 10000);
+</script>
+</body>
+</html>

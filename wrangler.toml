@@ -1,0 +1,13 @@
+name = "live-recorder-status"
+main = "worker/src/index.js"
+compatibility_date = "2024-01-01"
+account_id = "<YOUR_CLOUDFLARE_ACCOUNT_ID>"
+
+[vars]
+API_BASE = "https://<YOUR_BILILIVE_API_HOST>"
+
+[[routes]]
+pattern = "<YOUR_WORKER_ROUTE>"
+zone_name = "<YOUR_ZONE_NAME>"
+
+# PASSKEY is stored as a secret: npx wrangler secret put PASSKEY
