@@ -154,6 +154,14 @@ async function getStatusData(env) {
     ));
     const historyMap = new Map(histResults.map((h) => [h.rid, h.items]));
 
+    // Fetch independent session stats from D1 (covers all rooms including non-recording ones)
+    let d1Stats = new Map();
+    if (env.DB) {
+      try {
+        d1Stats = await getD1SessionStats(env, weekStart, todayStart, now);
+      } catch (e) { /* D1 unavailable — degrade silently */ }
+    }
+
     // Aggregates
     let todayDuration = 0;
     let todayDanmu = 0;
@@ -273,6 +281,25 @@ async function getStatusData(env) {
       }
       const avgDensity = roomWeekDensityWeight > 0 ? roomWeekDensitySumWeighted / roomWeekDensityWeight : 0;
 
+      // Merge D1 independent session stats — use D1 for duration/sessions if it has more data
+      const d1Key = r.channelId + "|" + r.providerId;
+      const d1 = d1Stats.get(d1Key);
+      let finalWeekSeconds = roomWeekSeconds;
+      let finalWeekDaily = roomWeekDaily;
+      let finalTodayDuration = roomTodayDuration;
+      let finalSessions = sessionDays.size;
+      if (d1) {
+        // D1 tracks all live time (not just recorded); use whichever is larger
+        if (d1.weekSeconds > roomWeekSeconds) {
+          finalWeekSeconds = d1.weekSeconds;
+          finalWeekDaily = d1.weekDaily;
+          finalSessions = d1.sessions.size;
+        }
+        if (d1.todaySeconds > roomTodayDuration) {
+          finalTodayDuration = d1.todaySeconds;
+        }
+      }
+
       return {
         id: r.id,
         name: r.remarks || (r.liveInfo && r.liveInfo.owner) || "",
@@ -296,16 +323,16 @@ async function getStatusData(env) {
         currentDanmu: sessionDanmu,
         currentDanmaDensity: +sessionDensity.toFixed(3),
         currentInteract: sessionInteract,
-        todayDuration: Math.floor(roomTodayDuration),
+        todayDuration: Math.floor(finalTodayDuration),
         todayDanmu: roomTodayDanmu,
         weekStats: {
-          sessions: sessionDays.size,        // distinct days streamed in last 7 days
-          segments: sessionsCount,           // total recording segments
-          totalSeconds: Math.floor(roomWeekSeconds),
+          sessions: finalSessions,             // distinct days streamed in last 7 days
+          segments: sessionsCount,             // total recording segments
+          totalSeconds: Math.floor(finalWeekSeconds),
           totalDanmu: roomWeekDanmu,
           avgDensity: +avgDensity.toFixed(3),
         },
-        weekDaily: roomWeekDaily.map((s) => +(s / 3600).toFixed(2)),
+        weekDaily: finalWeekDaily.map((s) => +(s / 3600).toFixed(2)),
         lastLiveTimestamp: lastFinished ? lastFinished.record_end_time : null,
       };
     });
@@ -323,6 +350,14 @@ async function getStatusData(env) {
       }))
       .sort((a, b) => b.count - a.count);
 
+    // Recompute global aggregates from merged per-room data (includes D1 sessions)
+    let mergedTodayDuration = 0;
+    const mergedWeekBuckets = new Array(7).fill(0);
+    for (const room of rooms) {
+      mergedTodayDuration += room.todayDuration;
+      for (let i = 0; i < 7; i++) mergedWeekBuckets[i] += room.weekDaily[i] * 3600; // hours → seconds
+    }
+
     // Week chart
     const weekLabels = [];
     for (let i = 0; i < 7; i++) {
@@ -331,7 +366,7 @@ async function getStatusData(env) {
     }
     const weekDuration = {
       labels: weekLabels,
-      values: weekBuckets.map((s) => +(s / 3600).toFixed(1)),
+      values: mergedWeekBuckets.map((s) => +(s / 3600).toFixed(1)),
     };
 
     // Recent events derived from history
@@ -382,7 +417,7 @@ async function getStatusData(env) {
         total: list.length,
         living: list.filter((r) => r.liveInfo && r.liveInfo.living).length,
         recording: list.filter((r) => r.state === "recording").length,
-        todayDuration: Math.floor(todayDuration),
+        todayDuration: Math.floor(mergedTodayDuration),
         todayDanmu,
         todayInteract,
         todayBytesEstimate: Math.floor(todayDuration * APPROX_BYTES_PER_SECOND),
@@ -1070,7 +1105,135 @@ a { color: inherit; text-decoration: none; }
 </body>
 </html>`;
 
+// ─── Cron: independent live session tracking via D1 ───────────────────────────
+// Runs every 2 minutes. Polls biliLive-tools for live status of ALL rooms
+// (including disableAutoCheck ones) and maintains session records in D1.
+
+async function pollLiveStatus(env) {
+  const recorders = await apiGet(env, "/api/recorder/list", { pageSize: 100 });
+  const list = (recorders && recorders.payload && recorders.payload.data) || [];
+
+  // For disableAutoCheck rooms, actively query live status
+  const staleIds = list.filter((r) => r.disableAutoCheck === true).map((r) => r.id);
+  if (staleIds.length > 0) {
+    try {
+      const fresh = await apiPost(env, "/api/recorder/manager/liveInfo", { ids: staleIds });
+      const freshArr = (fresh && fresh.payload) || [];
+      const byChannel = new Map();
+      for (const item of freshArr) {
+        if (item && item.channelId) byChannel.set(String(item.channelId), item);
+      }
+      for (const r of list) {
+        if (r.disableAutoCheck !== true) continue;
+        const f = byChannel.get(String(r.channelId));
+        if (!f) continue;
+        const base = r.liveInfo || {};
+        r.liveInfo = Object.assign({}, base, f);
+        if (base.liveStartTime) r.liveInfo.liveStartTime = base.liveStartTime;
+      }
+    } catch (e) {
+      console.error("pollLiveStatus: liveInfo fetch failed:", e.message);
+    }
+  }
+
+  const now = Date.now();
+
+  // Build current live state: { roomId+platform → { living, liveId } }
+  const currentState = new Map();
+  for (const r of list) {
+    const living = !!(r.liveInfo && r.liveInfo.living);
+    const liveId = (r.liveInfo && r.liveInfo.liveId) || null;
+    currentState.set(r.channelId + "|" + r.providerId, { living, liveId, roomId: r.channelId, platform: r.providerId });
+  }
+
+  // Get all currently open sessions from D1
+  const openSessions = await env.DB.prepare(
+    "SELECT id, room_id, platform, live_id FROM live_sessions WHERE end_time IS NULL"
+  ).all();
+  const openByKey = new Map();
+  for (const row of (openSessions.results || [])) {
+    openByKey.set(row.room_id + "|" + row.platform, row);
+  }
+
+  // Close sessions for rooms that are no longer live
+  for (const [key, row] of openByKey) {
+    const cur = currentState.get(key);
+    if (!cur || !cur.living) {
+      await env.DB.prepare(
+        "UPDATE live_sessions SET end_time = ? WHERE id = ?"
+      ).bind(now, row.id).run();
+    }
+  }
+
+  // Open new sessions for rooms that are live but have no open session
+  for (const [key, cur] of currentState) {
+    if (!cur.living) continue;
+    const existing = openByKey.get(key);
+    // If there's an open session with same live_id, keep it
+    if (existing && existing.live_id === cur.liveId) continue;
+    // If live_id changed (new session), close old and open new
+    if (existing && existing.live_id !== cur.liveId) {
+      await env.DB.prepare(
+        "UPDATE live_sessions SET end_time = ? WHERE id = ?"
+      ).bind(now, existing.id).run();
+    }
+    // Insert new session
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO live_sessions (room_id, platform, live_id, start_time) VALUES (?, ?, ?, ?)"
+    ).bind(cur.roomId, cur.platform, cur.liveId, now).run();
+  }
+}
+
+// Query D1 for session stats within a time range
+async function getD1SessionStats(env, weekStart, todayStart, now) {
+  const rows = await env.DB.prepare(
+    "SELECT room_id, platform, start_time, end_time FROM live_sessions WHERE start_time >= ? OR end_time IS NULL"
+  ).bind(weekStart).all();
+
+  const sessions = (rows.results || []);
+  // Per-room aggregation
+  const roomStats = new Map(); // key: room_id|platform
+
+  for (const s of sessions) {
+    const key = s.room_id + "|" + s.platform;
+    if (!roomStats.has(key)) {
+      roomStats.set(key, {
+        weekSeconds: 0,
+        weekDaily: new Array(7).fill(0),
+        todaySeconds: 0,
+        sessions: new Set(),
+      });
+    }
+    const stat = roomStats.get(key);
+    const startMs = s.start_time;
+    const endMs = s.end_time || now;
+    const dur = Math.max(0, (endMs - startMs) / 1000);
+
+    if (startMs >= weekStart) {
+      stat.weekSeconds += dur;
+      const idx = Math.floor((startMs - weekStart) / 86400000);
+      if (idx >= 0 && idx < 7) stat.weekDaily[idx] += dur;
+      const dayKey = Math.floor((startMs + CST_OFFSET_MS) / 86400000);
+      stat.sessions.add(dayKey);
+    }
+    if (startMs >= todayStart) {
+      stat.todaySeconds += dur;
+    }
+  }
+
+  return roomStats;
+}
+
 export default {
+  async scheduled(event, env, ctx) {
+    try {
+      await pollLiveStatus(env);
+    } catch (e) {
+      // Cron failures are logged but don't crash
+      console.error("Cron pollLiveStatus failed:", e);
+    }
+  },
+
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const cache = caches.default;

@@ -10,6 +10,18 @@ API_BASE = "https://<YOUR_BILILIVE_API_HOST>"
 # Optional: 51.la analytics ID (omit to disable tracking)
 # LA_ID = "<YOUR_51LA_ID>"
 
+# D1 database for independent live session tracking
+# Create with: npx wrangler d1 create live-sessions
+# Then apply schema: npx wrangler d1 execute live-sessions --remote --file=worker/schema.sql
+[[d1_databases]]
+binding = "DB"
+database_name = "live-sessions"
+database_id = "<YOUR_D1_DATABASE_ID>"
+
+# Poll live status every 2 minutes (writes to D1)
+[triggers]
+crons = ["*/2 * * * *"]
+
 [[routes]]
 pattern = "<YOUR_WORKER_ROUTE>"
 zone_name = "<YOUR_ZONE_NAME>"
