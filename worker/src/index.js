@@ -26,12 +26,12 @@ async function apiGet(env, path, params) {
 // Fetch real live start time from DouYin via proxy server.
 // DouYin's mobile API blocks Cloudflare IPs, so we proxy through an EC2 server.
 // Returns epoch ms of when the broadcast actually started, or 0 on failure.
-const DOUYIN_PROXY_URL = "https://live.neoclaw.asia/douyin-proxy";
+// Set DOUYIN_PROXY_URL env var to enable (e.g. "https://your-server/douyin-proxy").
 
 async function fetchDouyinRealStartTime(env, uid) {
-  if (!uid) return 0;
+  if (!uid || !env.DOUYIN_PROXY_URL) return 0;
   try {
-    const url = DOUYIN_PROXY_URL + "/create-time?uid=" + encodeURIComponent(uid);
+    const url = env.DOUYIN_PROXY_URL + "/create-time?uid=" + encodeURIComponent(uid);
     const r = await fetch(url, {
       cf: { cacheTtl: 0, cacheEverything: false },
     });
@@ -1066,8 +1066,7 @@ a { color: inherit; text-decoration: none; }
   setInterval(fetchData, 10000);
 })();
 </script>
-<script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js"></script>
-<script>LA.init({id:"3Q4Dxgbl4v7XddCB",ck:"3Q4Dxgbl4v7XddCB",autoTrack:true,hashMode:true,screenRecord:true})</script>
+<!-- 51.la analytics injected by Worker if LA_ID env var is set -->
 </body>
 </html>`;
 
@@ -1133,7 +1132,12 @@ export default {
     // Escape </script> to prevent XSS from upstream data (e.g. streamer names/titles)
     const json = JSON.stringify(initialData).replace(/<\//g, "<\\/");
     const inline = "window.__INITIAL_DATA__ = " + json + ";";
-    const html = HTML.replace("(function () {", "(function () {\n" + inline + "\n");
+    let html = HTML.replace("(function () {", "(function () {\n" + inline + "\n");
+    // Inject 51.la analytics only if LA_ID env var is configured
+    if (env.LA_ID) {
+      const laScript = `<script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js"></script>\n<script>LA.init({id:"${env.LA_ID}",ck:"${env.LA_ID}",autoTrack:true,hashMode:true,screenRecord:true})</script>`;
+      html = html.replace("<!-- 51.la analytics injected by Worker if LA_ID env var is set -->", laScript);
+    }
     return new Response(html, {
       headers: {
         "Content-Type": "text/html;charset=UTF-8",

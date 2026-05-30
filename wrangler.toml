@@ -5,6 +5,10 @@ account_id = "<YOUR_CLOUDFLARE_ACCOUNT_ID>"
 
 [vars]
 API_BASE = "https://<YOUR_BILILIVE_API_HOST>"
+# Optional: DouYin proxy for fetching real live start time (bypasses Cloudflare IP block)
+# DOUYIN_PROXY_URL = "https://<YOUR_PROXY_SERVER>/douyin-proxy"
+# Optional: 51.la analytics ID (omit to disable tracking)
+# LA_ID = "<YOUR_51LA_ID>"
 
 [[routes]]
 pattern = "<YOUR_WORKER_ROUTE>"
