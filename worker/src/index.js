@@ -1138,17 +1138,24 @@ async function pollLiveStatus(env) {
 
   const now = Date.now();
 
-  // Build current live state: { roomId+platform → { living, liveId } }
+  // Build current live state: { roomId+platform → { living, liveId, startTime } }
   const currentState = new Map();
   for (const r of list) {
     const living = !!(r.liveInfo && r.liveInfo.living);
     const liveId = (r.liveInfo && r.liveInfo.liveId) || null;
-    currentState.set(r.channelId + "|" + r.providerId, { living, liveId, roomId: r.channelId, platform: r.providerId });
+    // For disableAutoCheck rooms, /manager/liveInfo returns call time as liveStartTime — unreliable.
+    // Only trust liveStartTime from rooms with autoCheck enabled (biliLive-tools tracks it properly).
+    let startTime = 0; // 0 means "use now when inserting"
+    if (!r.disableAutoCheck && r.liveInfo && r.liveInfo.liveStartTime) {
+      const parsed = new Date(r.liveInfo.liveStartTime).getTime();
+      if (parsed > 0 && parsed <= now) startTime = parsed;
+    }
+    currentState.set(r.channelId + "|" + r.providerId, { living, liveId, roomId: r.channelId, platform: r.providerId, startTime });
   }
 
   // Get all currently open sessions from D1
   const openSessions = await env.DB.prepare(
-    "SELECT id, room_id, platform, live_id FROM live_sessions WHERE end_time IS NULL"
+    "SELECT id, room_id, platform, live_id, start_time FROM live_sessions WHERE end_time IS NULL"
   ).all();
   const openByKey = new Map();
   for (const row of (openSessions.results || [])) {
@@ -1169,18 +1176,27 @@ async function pollLiveStatus(env) {
   for (const [key, cur] of currentState) {
     if (!cur.living) continue;
     const existing = openByKey.get(key);
-    // If there's an open session with same live_id, keep it
-    if (existing && existing.live_id === cur.liveId) continue;
+    // If there's an open session with same live_id, check if we can improve start_time
+    if (existing && existing.live_id === cur.liveId) {
+      // If we now have a real (earlier) start time, update the record
+      if (cur.startTime > 0 && cur.startTime < existing.start_time) {
+        await env.DB.prepare(
+          "UPDATE live_sessions SET start_time = ? WHERE id = ?"
+        ).bind(cur.startTime, existing.id).run();
+      }
+      continue;
+    }
     // If live_id changed (new session), close old and open new
     if (existing && existing.live_id !== cur.liveId) {
       await env.DB.prepare(
         "UPDATE live_sessions SET end_time = ? WHERE id = ?"
       ).bind(now, existing.id).run();
     }
-    // Insert new session
+    // Insert new session — use real start time if available, otherwise use now (first detection)
+    const insertTime = cur.startTime > 0 ? cur.startTime : now;
     await env.DB.prepare(
       "INSERT OR IGNORE INTO live_sessions (room_id, platform, live_id, start_time) VALUES (?, ?, ?, ?)"
-    ).bind(cur.roomId, cur.platform, cur.liveId, now).run();
+    ).bind(cur.roomId, cur.platform, cur.liveId, insertTime).run();
   }
 }
 
