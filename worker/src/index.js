@@ -156,9 +156,12 @@ async function getStatusData(env) {
 
     // Fetch independent session stats from D1 (covers all rooms including non-recording ones)
     let d1Stats = new Map();
+    let d1OpenStartTimes = new Map();
     if (env.DB) {
       try {
-        d1Stats = await getD1SessionStats(env, weekStart, todayStart, now);
+        const d1 = await getD1SessionStats(env, weekStart, todayStart, now);
+        d1Stats = d1.roomStats;
+        d1OpenStartTimes = d1.openStartTimes;
       } catch (e) { /* D1 unavailable — degrade silently */ }
     }
 
@@ -229,7 +232,13 @@ async function getStatusData(env) {
           }
         }
       }
-      // Fallbacks if history hasn't caught up yet
+      // Fallback: D1 Cron tracks open sessions with first-detection start_time (≤2min accuracy)
+      if (!sessionLiveStart) {
+        const d1Key = r.channelId + "|" + r.providerId;
+        const d1OpenStart = d1OpenStartTimes.get(d1Key);
+        if (d1OpenStart) sessionLiveStart = d1OpenStart;
+      }
+      // Last resort: liveInfo.liveStartTime (call time for disableAutoCheck rooms, unreliable)
       if (!sessionLiveStart && living && r.liveInfo && r.liveInfo.liveStartTime) {
         sessionLiveStart = new Date(r.liveInfo.liveStartTime).getTime();
       }
@@ -1061,6 +1070,8 @@ async function getD1SessionStats(env, weekStart, todayStart, now) {
   const sessions = (rows.results || []);
   // Per-room aggregation
   const roomStats = new Map(); // key: room_id|platform
+  // Open session start times for live duration accuracy
+  const openStartTimes = new Map(); // key: room_id|platform → start_time
 
   for (const s of sessions) {
     const key = s.room_id + "|" + s.platform;
@@ -1077,6 +1088,11 @@ async function getD1SessionStats(env, weekStart, todayStart, now) {
     const endMs = s.end_time || now;
     const dur = Math.max(0, (endMs - startMs) / 1000);
 
+    // Track open sessions for live duration
+    if (!s.end_time) {
+      openStartTimes.set(key, startMs);
+    }
+
     if (startMs >= weekStart) {
       stat.weekSeconds += dur;
       const idx = Math.floor((startMs - weekStart) / 86400000);
@@ -1089,7 +1105,7 @@ async function getD1SessionStats(env, weekStart, todayStart, now) {
     }
   }
 
-  return roomStats;
+  return { roomStats, openStartTimes };
 }
 
 export default {
