@@ -496,7 +496,7 @@ a { color: inherit; text-decoration: none; }
 .topbar-right .pill.live { background: var(--red-dim); border-color: var(--red); color: var(--red); }
 .clock { font-size: 14px; color: var(--text-1); letter-spacing: 0.04em; }
 
-.main { display: grid; grid-template-columns: 1fr 340px; gap: 18px; align-items: start; }
+.main { display: block; }
 
 .section-hd { display: flex; align-items: center; gap: 10px; margin: 22px 0 12px; }
 .section-hd .label { font-size: 12px; color: var(--text-3); letter-spacing: 0.1em; text-transform: uppercase; }
@@ -589,80 +589,14 @@ a { color: inherit; text-decoration: none; }
 }
 .room-idle-meta { font-size: 11px; color: var(--text-3); margin-top: 3px; }
 
-.right-col { display: flex; flex-direction: column; gap: 14px; }
-.panel { background: var(--bg-card); border: 0.5px solid var(--border); border-radius: 12px; padding: 16px 18px; }
-.panel-title {
-  font-size: 12px; color: var(--text-2); letter-spacing: 0.06em;
-  margin-bottom: 14px; display: flex; align-items: center; gap: 6px;
-  text-transform: uppercase;
-  cursor: pointer; user-select: none;
-}
-.panel-title:hover { color: var(--text-1); }
-.panel-title .emoji { font-size: 14px; }
-.panel-chevron {
-  margin-left: auto;
-  font-size: 11px; color: var(--text-3);
-  transition: transform 0.2s ease;
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-}
-.panel.collapsed .panel-title { margin-bottom: 0; }
-.panel.collapsed .panel-chevron { transform: rotate(-90deg); }
-.panel.collapsed .panel-body { display: none; }
 
-.lb-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 0; border-bottom: 0.5px solid var(--border);
-}
-.lb-row:last-child { border-bottom: none; }
-.lb-medal {
-  width: 28px; height: 28px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700; flex-shrink: 0;
-}
-.lb-medal.gold { background: rgba(255,209,92,0.18); color: var(--gold); }
-.lb-cat { font-size: 10px; color: var(--text-3); letter-spacing: 0.04em; margin-bottom: 2px; }
-.lb-info { flex: 1; min-width: 0; }
-.lb-name { font-size: 13px; color: var(--text-1); font-weight: 500; }
-.lb-val { font-size: 11px; color: var(--text-2); margin-top: 1px; }
-
-.profile-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 11px 0; border-bottom: 0.5px solid var(--border);
-}
-.profile-row:last-child { border-bottom: none; padding-bottom: 0; }
-.profile-row:first-child { padding-top: 0; }
-.profile-avatar {
-  width: 32px; height: 32px; border-radius: 50%;
-  background-color: #2a3550; flex-shrink: 0;
-  object-fit: cover;
-  display: block;
-}
-.profile-info { flex: 1; min-width: 0; }
-.profile-name {
-  font-size: 13px; font-weight: 500; margin-bottom: 2px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.profile-stats { font-size: 11px; color: var(--text-3); display: flex; gap: 8px; }
-.profile-stats .stat { color: var(--text-2); }
-.profile-status {
-  font-size: 10px; padding: 2px 7px; border-radius: 3px; flex-shrink: 0;
-}
-.profile-status.live { background: var(--red-dim); color: var(--red); }
-.profile-status.idle { background: rgba(255,255,255,0.04); color: var(--text-3); }
-
-.sparkline {
-  display: flex; align-items: flex-end;
-  gap: 2px; height: 18px; width: 60px; margin-left: 8px; flex-shrink: 0;
-}
-.spark-bar { flex: 1; min-height: 2px; background: rgba(0,201,124,0.5); border-radius: 1px; }
-.spark-bar.today { background: var(--green); }
 
 .empty-row { color: var(--text-3); padding: 8px 0; font-size: 12px; text-align: center; }
 
 .error-banner {
-  background: var(--red-dim); border: 0.5px solid var(--red);
-  color: var(--red); padding: 10px 14px; border-radius: 8px;
-  margin-bottom: 16px; font-size: 12px;
+  background: var(--amber-dim); border: 0.5px solid var(--amber);
+  color: var(--amber); padding: 10px 14px; border-radius: 8px;
+  margin-bottom: 16px; font-size: 13px;
 }
 
 .footer { text-align: center; padding: 24px 0 8px; color: var(--text-3); font-size: 11px; }
@@ -706,16 +640,6 @@ a { color: inherit; text-decoration: none; }
     <div class="rooms-grid" id="grid-idle"></div>
   </div>
 
-  <div class="right-col">
-    <div class="panel" data-panel="leaderboard">
-      <div class="panel-title"><span class="emoji">🏆</span>本周之最<span class="panel-chevron">▾</span></div>
-      <div class="panel-body"><div id="leaderboard"></div></div>
-    </div>
-    <div class="panel" data-panel="profile">
-      <div class="panel-title"><span class="emoji">📊</span>主播档案 · 近 7 日<span class="panel-chevron">▾</span></div>
-      <div class="panel-body"><div id="profile-list"></div></div>
-    </div>
-  </div>
 </div>
 
 <div class="footer">
@@ -961,82 +885,28 @@ a { color: inherit; text-decoration: none; }
       document.getElementById("grid-idle"),
       idle.length > 0
         ? idle.map(roomCardHtml).join("")
-        : '<div class="empty-row" style="grid-column:1/-1">暂无未开播主播</div>'
+        : '<div class="empty-row" style="grid-column:1/-1">暂时没有主播在休息哦~</div>'
     );
 
     document.getElementById("t-live-count").textContent = live.length + " 主播在播";
   }
 
-  function renderLeaderboard() {
-    var slot = document.getElementById("leaderboard");
-    if (STREAMERS.length === 0) { setHtmlIfChanged(slot, '<div class="empty-row">暂无数据</div>'); return; }
-    var sorted = function (key, getter) {
-      return STREAMERS.slice().sort(function (a, b) { return getter(b) - getter(a); })[0];
-    };
-    var byDanmu = sorted("d", function (s) { return s.weekStats.totalDanmu; });
-    var byHours = sorted("h", function (s) { return s.weekStats.totalSeconds; });
-
-    var items = [
-      { cat: "弹幕王",   s: byDanmu, val: fmtNum(byDanmu.weekStats.totalDanmu) + " 条" },
-      { cat: "续航之王", s: byHours, val: fmtHours(byHours.weekStats.totalSeconds) + " 直播" },
-    ];
-
-    setHtmlIfChanged(slot, items.map(function (it) {
-      return '<div class="lb-row">' +
-        '<div class="lb-medal gold">🏆</div>' +
-        '<div class="lb-info">' +
-          '<div class="lb-cat">' + escapeHtml(it.cat) + "</div>" +
-          '<div class="lb-name">' + escapeHtml(it.s.name) + "</div>" +
-          '<div class="lb-val mono">' + escapeHtml(it.val) + "</div>" +
-        "</div>" +
-      "</div>";
-    }).join(""));
-  }
-
-  function sparklineHtml(daily) {
-    var max = Math.max.apply(null, daily.concat([1]));
-    var bars = daily.map(function (v, i) {
-      var h = Math.max(2, Math.round((v / max) * 100));
-      var isToday = i === daily.length - 1;
-      return '<div class="spark-bar' + (isToday ? " today" : "") + '" style="height:' + h + '%"></div>';
-    }).join("");
-    return '<div class="sparkline">' + bars + "</div>";
-  }
-
-  function renderProfiles() {
-    var sorted = STREAMERS.slice().sort(function (a, b) {
-      if (a.status !== b.status) return a.status === "live" ? -1 : 1;
-      return b.weekStats.totalDanmu - a.weekStats.totalDanmu;
-    });
-    var slot = document.getElementById("profile-list");
-    if (sorted.length === 0) { setHtmlIfChanged(slot, '<div class="empty-row">暂无数据</div>'); return; }
-    setHtmlIfChanged(slot, sorted.map(function (s) {
-      return '<div class="profile-row">' +
-        imgTag(stableAvatar(s), "profile-avatar") +
-        '<div class="profile-info">' +
-          '<div class="profile-name">' + escapeHtml(s.name) + "</div>" +
-          '<div class="profile-stats">' +
-            '<span class="stat mono">' + s.weekStats.sessions + " 场</span>" +
-            '<span class="stat mono">' + fmtHours(s.weekStats.totalSeconds) + "</span>" +
-            '<span class="stat mono">💬' + fmtNum(s.weekStats.totalDanmu) + "</span>" +
-          "</div>" +
-        "</div>" +
-        sparklineHtml(s.weekDaily) +
-        '<span class="profile-status ' + (s.status === "live" ? "live" : "idle") + '">' + (s.status === "live" ? "直播中" : "离线") + "</span>" +
-      "</div>";
-    }).join(""));
-  }
-
   function showError(msg) {
     var slot = document.getElementById("error-banner-slot");
-    slot.innerHTML = msg ? '<div class="error-banner">⚠ 数据获取失败: ' + escapeHtml(msg) + "</div>" : "";
+    if (!msg) { slot.innerHTML = ""; return; }
+    // Friendly messages for common upstream issues
+    var friendly = msg;
+    if (msg.indexOf("fetch") !== -1 || msg.indexOf("502") !== -1 || msg.indexOf("500") !== -1) {
+      friendly = "暂时无法获取主播数据，请稍后再来看看~";
+    } else if (msg.indexOf("timeout") !== -1 || msg.indexOf("ETIMEDOUT") !== -1) {
+      friendly = "服务器响应有点慢，请耐心等待一下~";
+    }
+    slot.innerHTML = '<div class="error-banner">' + escapeHtml(friendly) + "</div>";
   }
 
   function renderAll() {
     showError(lastError);
     renderRooms();
-    renderLeaderboard();
-    renderProfiles();
   }
 
   function tick() {
@@ -1073,25 +943,6 @@ a { color: inherit; text-decoration: none; }
     lastError = window.__INITIAL_DATA__.error || "未知错误";
     showError(lastError);
   }
-
-  // Collapsible panels
-  function initPanels() {
-    var panels = document.querySelectorAll(".panel[data-panel]");
-    for (var i = 0; i < panels.length; i++) (function (p) {
-      var name = p.getAttribute("data-panel");
-      var key = "panel-collapsed:" + name;
-      var saved = null;
-      try { saved = localStorage.getItem(key); } catch (e) {}
-      if (saved === "1") p.classList.add("collapsed");
-      var title = p.querySelector(".panel-title");
-      if (!title) return;
-      title.addEventListener("click", function () {
-        p.classList.toggle("collapsed");
-        try { localStorage.setItem(key, p.classList.contains("collapsed") ? "1" : "0"); } catch (e) {}
-      });
-    })(panels[i]);
-  }
-  initPanels();
 
   renderClock();
   if (!window.__INITIAL_DATA__ || !window.__INITIAL_DATA__.ok) fetchData();
