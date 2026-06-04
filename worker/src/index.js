@@ -505,7 +505,7 @@ a { color: inherit; text-decoration: none; }
 
 .rooms-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(max(240px, calc((100% - 30px) / 4)), 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
 }
 .room-card {
@@ -602,9 +602,10 @@ a { color: inherit; text-decoration: none; }
 .footer { text-align: center; padding: 24px 0 8px; color: var(--text-3); font-size: 11px; }
 .footer a { color: var(--text-2); }
 
-@media (max-width: 1100px) { .main { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { .rooms-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 700px) {
   body { padding: 12px; }
+  .rooms-grid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
